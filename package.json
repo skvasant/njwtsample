@@ -1,0 +1,18 @@
+{
+  "name": "njwtsample",
+  "version": "0.0.1",
+  "description": "node json web tokens sample",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "uuid": "3.1.0",
+    "njwt": "0.4.0",
+    "secure-random": "1.1.1",
+    "express": "4.15.4"
+  },
+  "scripts": {
+    "start": "node app.js"
+  },
+  "main": "app.js",
+  "devDependencies": {},
+  "author": "Vasanth Kumararajan"
+}
