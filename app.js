@@ -45,7 +45,7 @@ app.get(['/api','/api/v(1.0|1)'], function (req, res) {
             responseBody = {'data':null};        
         } catch(error) {
             responseStatus = 401;
-            responseBody = {'error':{'code':responseStatus,'message':'Unauthorized'}};
+            responseBody = {'error':{'code':responseStatus,'message':'Unauthorized','details':error.message}};
             console.log(error);
         }
     }
@@ -57,6 +57,7 @@ app.get(['/api','/api/v(1.0|1)'], function (req, res) {
 
 app.post(['/api/login','/api/v(1.0|1)/login'], function(req, res) {
     let jsonString = '';
+    
     if(req.headers['content-type'] === 'application/json') {
         req.on('data', function(data) {
             jsonString += data;
@@ -68,47 +69,57 @@ app.post(['/api/login','/api/v(1.0|1)/login'], function(req, res) {
             }
         });
         req.on('end', function() {
-            let userCredentials = JSON.parse(jsonString);
-            //console.log(userCredentials.userName);
+            let user;
+            try {
+                let userCredentials = JSON.parse(jsonString);
+                //console.log(userCredentials.userName);
 
-            // TODO: Authenticate the user credentials
-            let user = {'name':userCredentials.userName,'authenticated':true,'roles':['api']};
-
-            if (!user.authenticated) {
-                responseStatus = 401;
-                responseBody = {'error':{'code':responseStatus,'message':'Unauthorized'}};
-            } else {
-                let claims = {
-                    iss: `http://${hostname}:${port}/`, // The URL of your service 
-                    sub: user.name,      // The UID of the user in your system 
-                    scope: user.roles
-                };
-                
-                //console.log(base64SigningKey);
-
-                try {
-                    let jwt = nJwt.create(claims,signingKey);
-                    //console.log(jwt);
-                    let token = jwt.compact();
-                    //console.log(token);
-                    let responseAuthorization = `Bearer ${token}`;
-                    res.setHeader('Authorization', responseAuthorization);
-                    // HTTP-only cookies aren't accessible via JavaScript through the Document.cookie property.
-                    res.setHeader('Set-Cookie',`njwtsample-Token=${token}; HttpOnly`);   // Non-production
-                    // A secure cookie will only be sent to the server when a request is made using SSL and the HTTPS protocol.
-                    //res.setHeader('Set-Cookie',`njwtsample-Token=${token}; Secure; HttpOnly`); // TODO: Production
-                    responseStatus = 200;
-                    responseBody = {'data':null};
-                } catch (error) {
+                // TODO: Authenticate the user credentials
+                user = {'name':userCredentials.userName,'authenticated':true,'roles':['api']};
+            } catch (error) {
+                responseStatus = 400;
+                responseBody = {'error':{'code':responseStatus,'message':'Bad Request','details':error.message}};
+                console.log(error);
+            }
+            
+            if(typeof user !== 'undefined') {
+                if (!user.authenticated) {
                     responseStatus = 401;
                     responseBody = {'error':{'code':responseStatus,'message':'Unauthorized'}};
-                    console.log(error);
-                } finally {
-                    res.statusCode = responseStatus;
-                    res.write(JSON.stringify(responseBody));
-                    res.send();
+                    
+                } else {
+                    let claims = {
+                        iss: `http://${hostname}:${port}/`, // The URL of your service 
+                        sub: user.name,      // The UID of the user in your system 
+                        scope: user.roles
+                    };
+                    
+                    //console.log(base64SigningKey);
+
+                    try {
+                        let jwt = nJwt.create(claims,signingKey);
+                        //console.log(jwt);
+                        let token = jwt.compact();
+                        //console.log(token);
+                        let responseAuthorization = `Bearer ${token}`;
+                        res.setHeader('Authorization', responseAuthorization);
+                        // HTTP-only cookies aren't accessible via JavaScript through the Document.cookie property.
+                        res.setHeader('Set-Cookie',`njwtsample-Token=${token}; HttpOnly`);   // Non-production
+                        // A secure cookie will only be sent to the server when a request is made using SSL and the HTTPS protocol.
+                        //res.setHeader('Set-Cookie',`njwtsample-Token=${token}; Secure; HttpOnly`); // TODO: Production
+                        responseStatus = 200;
+                        responseBody = {'data':null};
+                    } catch (error) {
+                        responseStatus = 403;
+                        responseBody = {'error':{'code':responseStatus,'message':'Forbidden','details':error.message}};
+                        console.log(error);
+                    }
                 }
             }
+
+            res.statusCode = responseStatus;
+            res.write(JSON.stringify(responseBody));
+            res.send();
         });
     } else {
         responseStatus = 405;
